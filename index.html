@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JBD · Dragonfly Kitchen — Production & Inventory</title>
+<meta name="description" content="JBD Dragonfly Kitchen production tracker, sample log, and component inventory for NY 2026 Drop 1 / Series 1.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0a;
+    --bg-2: #141414;
+    --bg-3: #1c1c1c;
+    --ink: #f5f0e6;
+    --ink-mute: #8a8378;
+    --line: #2a2620;
+    --line-strong: #3a3530;
+    --gold: #c9a24a;
+    --sativa: #e8412c;
+    --indica: #6b87ff;
+    --hybrid: #d946a8;
+    --good: #4ade80;
+    --warn: #fbbf24;
+    --bad: #ef4444;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.02em; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { cursor: pointer; font-family: inherit; }
+  input, select, textarea {
+    font-family: inherit; font-size: 14px;
+    background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 4px;
+    padding: 10px 12px; width: 100%;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+          color: var(--ink-mute); margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+
+  /* HEADER */
+  header {
+    background: var(--bg-2); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .header-inner {
+    max-width: 1400px; margin: 0 auto; padding: 14px 24px;
+    display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  }
+  .brand-block { display: flex; align-items: center; gap: 16px; }
+  .brand-mark {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--gold), #8a6b2c);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #0a0a0a;
+    border-radius: 4px;
+  }
+  .brand-name { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.06em; line-height: 1; }
+  .brand-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-mute);
+               text-transform: uppercase; letter-spacing: 0.18em; margin-top: 4px; }
+  .header-actions { display: flex; gap: 8px; }
+  .btn {
+    background: transparent; color: var(--ink); border: 1px solid var(--line-strong);
+    padding: 9px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em;
+    border-radius: 4px; transition: all 0.2s;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .btn:hover { border-color: var(--gold); color: var(--gold); }
+  .btn.primary { background: var(--gold); color: #0a0a0a; border-color: var(--gold); font-weight: 600; }
+  .btn.primary:hover { background: #d4b163; color: #0a0a0a; }
+  .btn.danger { color: var(--bad); border-color: var(--bad); }
+  .btn.danger:hover { background: var(--bad); color: var(--bg); }
+  .btn-sm { padding: 6px 10px; font-size: 11px; }
+
+  /* TABS */
+  .tabs {
+    background: var(--bg-2); border-bottom: 1px solid var(--line);
+    position: sticky; top: 67px; z-index: 49;
+  }
+  .tabs-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px;
+                display: flex; gap: 0; overflow-x: auto; }
+  .tab {
+    background: transparent; border: none; color: var(--ink-mute);
+    padding: 14px 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em;
+    border-bottom: 2px solid transparent;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* MAIN */
+  main { max-width: 1400px; margin: 0 auto; padding: 32px 24px 80px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  h1.view-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 56px; line-height: 0.95;
+    margin-bottom: 8px;
+  }
+  .view-sub { color: var(--ink-mute); margin-bottom: 32px; font-size: 14px; }
+
+  /* DASHBOARD */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px; margin-bottom: 40px;
+  }
+  .kpi {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 24px; position: relative; overflow: hidden;
+  }
+  .kpi-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-mute);
+    margin-bottom: 12px;
+  }
+  .kpi-value {
+    font-family: 'Bebas Neue', sans-serif; font-size: 52px; line-height: 1;
+    color: var(--gold);
+  }
+  .kpi-unit { font-size: 16px; color: var(--ink-mute); margin-left: 6px; font-family: 'Inter'; }
+  .kpi-delta { font-size: 12px; color: var(--ink-mute); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+  .panel {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px;
+    margin-bottom: 24px; overflow: hidden;
+  }
+  .panel-head {
+    padding: 18px 24px; border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  }
+  .panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 0.02em; }
+  .panel-body { padding: 24px; }
+
+  /* TABLES */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-mute);
+    border-bottom: 1px solid var(--line); background: var(--bg-3);
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  tbody tr:hover { background: var(--bg-3); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* BADGES */
+  .badge {
+    display: inline-block; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 2px;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    border: 1px solid transparent;
+  }
+  .badge.sativa { color: var(--sativa); border-color: var(--sativa); background: rgba(232,65,44,0.08); }
+  .badge.indica { color: var(--indica); border-color: var(--indica); background: rgba(107,135,255,0.08); }
+  .badge.hybrid { color: var(--hybrid); border-color: var(--hybrid); background: rgba(217,70,168,0.08); }
+  .badge.in-hand { color: var(--good); border-color: var(--good); background: rgba(74,222,128,0.08); }
+  .badge.on-order { color: var(--warn); border-color: var(--warn); background: rgba(251,191,36,0.08); }
+  .badge.tbd { color: var(--ink-mute); border-color: var(--ink-mute); background: rgba(138,131,120,0.08); }
+  .badge.on-demand { color: var(--gold); border-color: var(--gold); background: rgba(201,162,74,0.08); }
+  .badge.depleted { color: var(--bad); border-color: var(--bad); background: rgba(239,68,68,0.08); }
+
+  /* HEALTH BAR */
+  .health-bar {
+    width: 100%; height: 6px; background: var(--bg-3); border-radius: 3px; overflow: hidden;
+    margin-top: 4px; position: relative;
+  }
+  .health-fill { height: 100%; background: var(--good); transition: width 0.3s; }
+  .health-fill.warn { background: var(--warn); }
+  .health-fill.bad { background: var(--bad); }
+
+  /* FORMS */
+  .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px; margin-bottom: 16px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-actions { display: flex; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); margin-top: 8px; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 10px; padding: 12px;
+                  background: var(--bg-3); border-radius: 4px; cursor: pointer; }
+  .checkbox-row input { width: auto; margin: 0; }
+
+  /* HELPER */
+  .empty {
+    padding: 48px; text-align: center; color: var(--ink-mute); font-size: 14px;
+  }
+  .empty .display { font-size: 28px; color: var(--ink); margin-bottom: 8px; }
+
+  .row-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: transparent; border: 1px solid var(--line-strong); color: var(--ink-mute);
+    padding: 4px 8px; border-radius: 3px; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+  .icon-btn.danger:hover { color: var(--bad); border-color: var(--bad); }
+
+  .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { max-width: 240px; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    background: var(--bg-2); border: 1px solid var(--gold); border-radius: 4px;
+    padding: 14px 20px; color: var(--ink);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    transform: translateY(120px); opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--bad); }
+
+  .pill-strain {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border-radius: 12px; font-size: 12px; background: var(--bg-3);
+    border: 1px solid var(--line-strong);
+  }
+  .pill-strain .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .pill-strain .dot.Sativa { background: var(--sativa); }
+  .pill-strain .dot.Indica { background: var(--indica); }
+  .pill-strain .dot.Hybrid { background: var(--hybrid); }
+
+  .alert {
+    padding: 16px; border-radius: 4px; border-left: 3px solid;
+    background: var(--bg-3); margin-bottom: 16px; font-size: 13px;
+  }
+  .alert.warn { border-color: var(--warn); }
+  .alert.bad { border-color: var(--bad); }
+  .alert.good { border-color: var(--good); }
+
+  .card-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;
+  }
+  .strain-card {
+    background: var(--bg-3); border: 1px solid var(--line); border-radius: 6px; padding: 20px;
+  }
+  .strain-card h4 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1; margin-bottom: 4px; }
+  .strain-card .strain-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px;
+                              color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; }
+  .strain-card .strain-counts { display: flex; gap: 24px; margin-top: 16px; padding-top: 16px;
+                                border-top: 1px solid var(--line); }
+  .strain-card .count-block { font-family: 'JetBrains Mono', monospace; }
+  .strain-card .count-num { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--gold); line-height: 1; }
+  .strain-card .count-lbl { font-size: 10px; color: var(--ink-mute); text-transform: uppercase;
+                            letter-spacing: 0.14em; margin-top: 4px; }
+
+  /* MODAL */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; z-index: 60;
+              align-items: center; justify-content: center; padding: 24px; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: 6px;
+           max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .modal-head { padding: 18px 24px; border-bottom: 1px solid var(--line); display: flex;
+                justify-content: space-between; align-items: center; }
+  .modal-body { padding: 24px; }
+
+  /* PRINT */
+  @media print {
+    header, .tabs, .form-actions, .header-actions, .row-actions, .icon-btn, .btn { display: none !important; }
+    body { background: white; color: black; }
+    .panel, .kpi { background: white !important; border-color: #ccc !important; }
+    h1, h2, h3, h4 { color: black !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand-block">
+      <div class="brand-mark">DK</div>
+      <div>
+        <div class="brand-name">DRAGONFLY KITCHEN</div>
+        <div class="brand-sub">JBD · NY Drop 1 · Series 1 — Production OS</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="exportData()">Export JSON</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn danger btn-sm" onclick="resetData()">Reset</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-inner">
+    <button class="tab active" data-view="dashboard">Dashboard</button>
+    <button class="tab" data-view="production">Production</button>
+    <button class="tab" data-view="samples">Samples / Testing</button>
+    <button class="tab" data-view="inventory">Inventory</button>
+    <button class="tab" data-view="strains">Strains</button>
+    <button class="tab" data-view="reports">Reports</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <h1 class="view-title">Dashboard</h1>
+    <p class="view-sub">Drop 1 / Series 1 — production health, sample tracking, and component inventory at a glance.</p>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div id="alertsContainer"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Strain Production Totals</div>
+        <span class="mono" style="font-size:11px;color:var(--ink-mute)">Drop 1 lineup</span>
+      </div>
+      <div class="panel-body">
+        <div class="card-row" id="strainCards"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Recent Activity</div></div>
+      <div class="panel-body" id="recentActivity"></div>
+    </div>
+  </section>
+
+  <!-- PRODUCTION -->
+  <section class="view" id="view-production">
+    <h1 class="view-title">Production</h1>
+    <p class="view-sub">Log finished-product runs. Component inventory is auto-deducted on save.</p>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">New Production Run</div>
+        <button class="btn btn-sm" onclick="suggestBatchId()">Suggest Batch ID</button>
+      </div>
+      <div class="panel-body">
+        <form id="productionForm" onsubmit="saveProduction(event)">
+          <div class="form-grid">
+            <div>
+              <label>Date</label>
+              <input type="date" name="date" required>
+            </div>
+            <div>
+              <label>Strain</label>
+              <select name="strainId" required onchange="onStrainChange(this)"></select>
+            </div>
+            <div>
+              <label>Format</label>
+              <select name="format" required>
+                <option value="Jar">Jar (7g)</option>
+                <option value="Pre-Roll">Pre-Roll (1g)</option>
+              </select>
+            </div>
+            <div>
+              <label>Batch ID</label>
+              <input type="text" name="batchId" placeholder="JBD-NY1-CG-260501-01" required>
+            </div>
+            <div>
+              <label>Incoming Flower (g)</label>
+              <input type="number" step="0.01" name="weightIn" required>
+            </div>
+            <div>
+              <label>Units Produced</label>
+              <input type="number" step="1" name="unitsOut" required oninput="updateYield(this.form)">
+            </div>
+            <div>
+              <label>Theoretical / Yield</label>
+              <input type="text" name="yieldDisplay" readonly placeholder="—">
+            </div>
+            <div>
+              <label>Operator</label>
+              <input type="text" name="operator" placeholder="Initials">
+            </div>
+            <div class="full">
+              <label>Notes (lab, COA, anomalies, etc.)</label>
+              <textarea name="notes" rows="2"></textarea>
+            </div>
+            <div class="full">
+              <label class="checkbox-row">
+                <input type="checkbox" name="coaPending"> COA pending lab return
+              </label>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Save Run</button>
+            <button type="reset" class="btn">Clear</button>
+            <span id="componentPreview" class="mono" style="font-size:11px;color:var(--ink-mute);margin-left:auto;align-self:center"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Production Log</div>
+        <span class="mono" style="font-size:11px;color:var(--ink-mute)" id="prodCount"></span>
+      </div>
+      <div class="filter-bar" style="padding: 16px 24px 0">
+        <input type="search" id="prodFilter" placeholder="Search batch / strain / operator..." oninput="renderProduction()">
+        <select id="prodFormatFilter" onchange="renderProduction()">
+          <option value="">All Formats</option>
+          <option value="Jar">Jar Only</option>
+          <option value="Pre-Roll">Pre-Roll Only</option>
+        </select>
+      </div>
+      <div class="panel-body" id="productionLog"></div>
+    </div>
+  </section>
+
+  <!-- SAMPLES -->
+  <section class="view" id="view-samples">
+    <h1 class="view-title">Samples / Testing</h1>
+    <p class="view-sub">Track flower or finished units sent for lab testing, press samples, retailer drops, internal QC, and other off-shelf use.</p>
+
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">New Sample Out</div></div>
+      <div class="panel-body">
+        <form id="sampleForm" onsubmit="saveSample(event)">
+          <div class="form-grid">
+            <div>
+              <label>Date</label>
+              <input type="date" name="date" required>
+            </div>
+            <div>
+              <label>Type</label>
+              <select name="type" required>
+                <option value="Lab Testing">Lab Testing (COA)</option>
+                <option value="Press / Influencer">Press / Influencer</option>
+                <option value="Retailer">Retailer Sample</option>
+                <option value="Internal QC">Internal QC</option>
+                <option value="Marketing / Promo">Marketing / Promo</option>
+                <option value="Waste / Loss">Waste / Loss</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label>Strain</label>
+              <select name="strainId" required></select>
+            </div>
+            <div>
+              <label>Linked Batch ID (optional)</label>
+              <input type="text" name="batchId" placeholder="JBD-NY1-CG-...">
+            </div>
+            <div>
+              <label>Form Sent</label>
+              <select name="form" required>
+                <option value="Flower (g)">Flower (g)</option>
+                <option value="Jar (units)">Jar (units)</option>
+                <option value="Pre-Roll (units)">Pre-Roll (units)</option>
+              </select>
+            </div>
+            <div>
+              <label>Quantity</label>
+              <input type="number" step="0.01" name="qty" required>
+            </div>
+            <div>
+              <label>Recipient / Destination</label>
+              <input type="text" name="recipient" placeholder="Lab name, person, dispensary, etc.">
+            </div>
+            <div>
+              <label>Tracking / Reference</label>
+              <input type="text" name="reference" placeholder="Tracking #, COA ID, etc.">
+            </div>
+            <div class="full">
+              <label>Notes</label>
+              <textarea name="notes" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Save Sample</button>
+            <button type="reset" class="btn">Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Sample Log</div>
+        <span class="mono" style="font-size:11px;color:var(--ink-mute)" id="sampleCount"></span>
+      </div>
+      <div class="filter-bar" style="padding: 16px 24px 0">
+        <input type="search" id="sampleFilter" placeholder="Search type / strain / recipient..." oninput="renderSamples()">
+        <select id="sampleTypeFilter" onchange="renderSamples()">
+          <option value="">All Types</option>
+          <option>Lab Testing</option>
+          <option>Press / Influencer</option>
+          <option>Retailer</option>
+          <option>Internal QC</option>
+          <option>Marketing / Promo</option>
+          <option>Waste / Loss</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="panel-body" id="sampleLog"></div>
+    </div>
+  </section>
+
+  <!-- INVENTORY -->
+  <section class="view" id="view-inventory">
+    <h1 class="view-title">Inventory</h1>
+    <p class="view-sub">Component stock — ordered, on hand, consumed, remaining. Click a row to edit qty, status, comments.</p>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Add Inventory Item</div>
+        <button class="btn btn-sm" onclick="toggleNewItem()">+ New Item</button>
+      </div>
+      <div class="panel-body" id="newItemForm" style="display:none">
+        <form onsubmit="saveNewItem(event)">
+          <div class="form-grid">
+            <div>
+              <label>Category</label>
+              <input type="text" name="category" required placeholder="GIFT BOX SETS / FLOWER / etc.">
+            </div>
+            <div>
+              <label>Description</label>
+              <input type="text" name="description" required>
+            </div>
+            <div>
+              <label>Variant</label>
+              <input type="text" name="variant" value="All Variants">
+            </div>
+            <div>
+              <label>Qty Ordered</label>
+              <input type="number" name="qty_ordered" required>
+            </div>
+            <div>
+              <label>Unit</label>
+              <input type="text" name="unit" value="units">
+            </div>
+            <div>
+              <label>Supplier</label>
+              <input type="text" name="supplier">
+            </div>
+            <div>
+              <label>Status</label>
+              <select name="status">
+                <option>In Hand</option><option>On Order</option><option>TBD</option><option>On Demand</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Add Item</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Components</div>
+        <span class="mono" style="font-size:11px;color:var(--ink-mute)" id="invCount"></span>
+      </div>
+      <div class="filter-bar" style="padding: 16px 24px 0">
+        <input type="search" id="invFilter" placeholder="Search description / supplier..." oninput="renderInventory()">
+        <select id="invCategoryFilter" onchange="renderInventory()">
+          <option value="">All Categories</option>
+        </select>
+        <select id="invStatusFilter" onchange="renderInventory()">
+          <option value="">All Statuses</option>
+          <option>In Hand</option><option>On Order</option><option>TBD</option><option>On Demand</option>
+        </select>
+      </div>
+      <div class="panel-body" id="inventoryTable" style="overflow-x:auto"></div>
+    </div>
+  </section>
+
+  <!-- STRAINS -->
+  <section class="view" id="view-strains">
+    <h1 class="view-title">Strains</h1>
+    <p class="view-sub">Drop 1 lineup. Add custom strains for future drops or one-offs.</p>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Add Strain</div>
+      </div>
+      <div class="panel-body">
+        <form onsubmit="saveNewStrain(event)">
+          <div class="form-grid">
+            <div>
+              <label>Name</label>
+              <input type="text" name="name" required>
+            </div>
+            <div>
+              <label>Type</label>
+              <select name="type" required>
+                <option>Sativa</option><option>Indica</option><option>Hybrid</option>
+              </select>
+            </div>
+            <div>
+              <label>Format</label>
+              <select name="format" required>
+                <option>Jar</option><option>Pre-Roll</option>
+              </select>
+            </div>
+            <div>
+              <label>Breeder</label>
+              <input type="text" name="breeder">
+            </div>
+            <div>
+              <label>Lineage</label>
+              <input type="text" name="lineage">
+            </div>
+            <div>
+              <label>THC Range</label>
+              <input type="text" name="thc" placeholder="22-26%">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Add Strain</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Strain Catalog</div></div>
+      <div class="panel-body" id="strainList"></div>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="view" id="view-reports">
+    <h1 class="view-title">Reports</h1>
+    <p class="view-sub">Export data, print batch sheets, run snapshot reports.</p>
+
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Export</div></div>
+      <div class="panel-body">
+        <p style="margin-bottom:16px;color:var(--ink-mute);font-size:13px">CSV exports open cleanly in Excel / Sheets.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" onclick="exportCSV('production')">Production CSV</button>
+          <button class="btn primary" onclick="exportCSV('samples')">Samples CSV</button>
+          <button class="btn primary" onclick="exportCSV('inventory')">Inventory CSV</button>
+          <button class="btn" onclick="exportData()">Full Backup (JSON)</button>
+          <button class="btn" onclick="window.print()">Print Snapshot</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><div class="panel-title">Drop 1 / Series 1 Snapshot</div></div>
+      <div class="panel-body" id="snapshotReport"></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =================== DATA LAYER ===================
+const STORAGE_KEY = 'jbd_dfly_kitchen_v1';
+let DB = { production: [], samples: [], inventory: [], strains: [], meta: {} };
+
+const SEED_INVENTORY_URL = 'assets/inventory-seed.json';
+const SEED_STRAINS_URL = 'assets/strains.json';
+
+// Component consumption ratios per finished unit
+const RECIPE = {
+  'Jar': {
+    perUnit: [
+      { match: r => r.description === '7g Child-Resistant Jar' && r.variant === 'All Variants', qty: 1 },
+      { match: r => r.description === '7g Jar Lid' && r.variant === 'All Variants', qty: 1 },
+      { match: (r, type) => r.description === '7g Jar Label' && r.variant === type, qty: 1 },
+    ],
+    perCase: 25,
+    caseComponents: [
+      { match: r => r.description.startsWith('Outer Case - Flower'), qty: 1 },
+      { match: r => r.description === 'Outer Case Insert Card - Flower', qty: 1 },
+      { match: r => r.description === 'Outer Case Barcode Label - Flower', qty: 1 },
+    ],
+  },
+  'Pre-Roll': {
+    perUnit: [
+      { match: r => r.description === 'Child-Resistant Pre-Roll Tube' && r.variant === 'All Variants', qty: 1 },
+      { match: r => r.description === 'Pre-Roll Tube Lid' && r.variant === 'All Variants', qty: 1 },
+      { match: (r, type) => r.description === 'Pre-Roll Tube Label' && r.variant === type, qty: 1 },
+      { match: (r, type) => r.description === 'Pre-Roll Cone - 1g, Custom Branded' && r.variant.startsWith(type), qty: 1 },
+    ],
+    perCase: 50,
+    caseComponents: [
+      { match: r => r.description.startsWith('Outer Case - Joints'), qty: 1 },
+      { match: r => r.description === 'Outer Case Insert Card - Joints', qty: 1 },
+      { match: r => r.description === 'Outer Case Barcode Label - Joints', qty: 1 },
+    ],
+  },
+};
+
+const TARGET_PER_UNIT_G = { 'Jar': 7, 'Pre-Roll': 1 };
+
+async function init() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try { DB = JSON.parse(raw); } catch (e) { console.error(e); }
+  }
+  if (!DB.inventory || DB.inventory.length === 0) {
+    DB.inventory = await fetch(SEED_INVENTORY_URL).then(r => r.json()).catch(() => []);
+  }
+  if (!DB.strains || DB.strains.length === 0) {
+    DB.strains = await fetch(SEED_STRAINS_URL).then(r => r.json()).catch(() => []);
+  }
+  DB.production = DB.production || [];
+  DB.samples = DB.samples || [];
+  DB.meta = DB.meta || { created: new Date().toISOString() };
+  save();
+  setupTabs();
+  setupForms();
+  populateStrainSelects();
+  renderAll();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+}
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+function toast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2400);
+}
+
+// =================== TABS ===================
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('view-' + b.dataset.view).classList.add('active');
+  }));
+}
+
+// =================== FORM SETUP ===================
+function setupForms() {
+  const today = new Date().toISOString().slice(0, 10);
+  document.querySelector('#productionForm input[name=date]').value = today;
+  document.querySelector('#sampleForm input[name=date]').value = today;
+}
+
+function populateStrainSelects() {
+  const opts = DB.strains.map(s =>
+    `<option value="${s.id}" data-type="${s.type}" data-format="${s.format}">${s.name} — ${s.type} ${s.format}</option>`
+  ).join('');
+  document.querySelectorAll('select[name=strainId]').forEach(sel => sel.innerHTML = '<option value="">—</option>' + opts);
+}
+
+function onStrainChange(sel) {
+  const opt = sel.selectedOptions[0];
+  if (!opt || !opt.dataset.format) return;
+  const fmtSel = sel.form.querySelector('select[name=format]');
+  if (fmtSel && opt.dataset.format) fmtSel.value = opt.dataset.format;
+  suggestBatchId();
+}
+
+function suggestBatchId() {
+  const f = document.getElementById('productionForm');
+  const sid = f.strainId.value;
+  if (!sid) return;
+  const strain = DB.strains.find(s => s.id === sid);
+  const code = strain.name.split(/\s+/).map(w => w[0]).join('').toUpperCase();
+  const date = (f.date.value || new Date().toISOString().slice(0,10)).replace(/-/g, '').slice(2);
+  const seq = (DB.production.filter(p => p.batchId && p.batchId.includes(`-${code}-${date}-`)).length + 1).toString().padStart(2, '0');
+  f.batchId.value = `JBD-NY1-${code}-${date}-${seq}`;
+}
+
+function updateYield(f) {
+  const w = parseFloat(f.weightIn.value);
+  const u = parseInt(f.unitsOut.value);
+  const fmt = f.format.value;
+  if (!w || !u || !fmt) { f.yieldDisplay.value = ''; return; }
+  const target = TARGET_PER_UNIT_G[fmt];
+  const theoretical = Math.floor(w / target);
+  const yieldPct = ((u * target / w) * 100).toFixed(1);
+  f.yieldDisplay.value = `${u}/${theoretical} units · ${yieldPct}% yield`;
+  document.getElementById('componentPreview').textContent = previewComponents(fmt, u);
+}
+
+function previewComponents(fmt, units) {
+  if (!units) return '';
+  const cases = Math.ceil(units / RECIPE[fmt].perCase);
+  return `Will consume: ${units}× per-unit components + ${cases}× case components`;
+}
+
+// =================== PRODUCTION ===================
+function saveProduction(e) {
+  e.preventDefault();
+  const f = e.target;
+  const strain = DB.strains.find(s => s.id === f.strainId.value);
+  if (!strain) return toast('Pick a strain', true);
+
+  const run = {
+    id: uid(),
+    date: f.date.value,
+    strainId: strain.id,
+    strainName: strain.name,
+    strainType: strain.type,
+    format: f.format.value,
+    batchId: f.batchId.value.trim(),
+    weightIn: parseFloat(f.weightIn.value),
+    unitsOut: parseInt(f.unitsOut.value),
+    operator: f.operator.value.trim(),
+    notes: f.notes.value.trim(),
+    coaPending: f.coaPending.checked,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Auto-deduct components
+  const result = consumeComponents(run.format, strain.type, run.unitsOut);
+  run.componentsConsumed = result.consumed;
+  if (result.warnings.length) {
+    toast('Saved, but: ' + result.warnings.join('; '), true);
+  } else {
+    toast(`Run saved · ${run.batchId}`);
+  }
+
+  DB.production.unshift(run);
+  save();
+  f.reset();
+  document.querySelector('#productionForm input[name=date]').value = new Date().toISOString().slice(0,10);
+  document.getElementById('componentPreview').textContent = '';
+  renderAll();
+}
+
+function consumeComponents(fmt, type, units) {
+  const recipe = RECIPE[fmt];
+  if (!recipe) return { consumed: [], warnings: [] };
+  const consumed = [];
+  const warnings = [];
+  const apply = (item, qty) => {
+    item.qty_consumed = (item.qty_consumed || 0) + qty;
+    consumed.push({ id: item.id, desc: item.description, variant: item.variant, qty });
+    const remaining = (item.qty_ordered || 0) - item.qty_consumed;
+    if (remaining < 0) warnings.push(`${item.description} (${item.variant}) overdrawn by ${Math.abs(remaining)}`);
+  };
+  for (const r of recipe.perUnit) {
+    const item = DB.inventory.find(i => r.match(i, type));
+    if (item) apply(item, r.qty * units);
+    else warnings.push(`Missing component: ${r.match.toString().slice(0,80)}`);
+  }
+  const cases = Math.ceil(units / recipe.perCase);
+  for (const r of recipe.caseComponents) {
+    const item = DB.inventory.find(i => r.match(i));
+    if (item) apply(item, r.qty * cases);
+  }
+  return { consumed, warnings };
+}
+
+function deleteProduction(id) {
+  if (!confirm('Delete this run? Components will be returned to inventory.')) return;
+  const run = DB.production.find(p => p.id === id);
+  if (run && run.componentsConsumed) {
+    for (const c of run.componentsConsumed) {
+      const item = DB.inventory.find(i => i.id === c.id);
+      if (item) item.qty_consumed = Math.max(0, (item.qty_consumed || 0) - c.qty);
+    }
+  }
+  DB.production = DB.production.filter(p => p.id !== id);
+  save(); renderAll(); toast('Run deleted, components restored');
+}
+
+// =================== SAMPLES ===================
+function saveSample(e) {
+  e.preventDefault();
+  const f = e.target;
+  const strain = DB.strains.find(s => s.id === f.strainId.value);
+  const sample = {
+    id: uid(),
+    date: f.date.value,
+    type: f.type.value,
+    strainId: strain ? strain.id : '',
+    strainName: strain ? strain.name : '',
+    strainType: strain ? strain.type : '',
+    batchId: f.batchId.value.trim(),
+    form: f.form.value,
+    qty: parseFloat(f.qty.value),
+    recipient: f.recipient.value.trim(),
+    reference: f.reference.value.trim(),
+    notes: f.notes.value.trim(),
+    timestamp: new Date().toISOString(),
+  };
+  DB.samples.unshift(sample);
+  save();
+  f.reset();
+  document.querySelector('#sampleForm input[name=date]').value = new Date().toISOString().slice(0,10);
+  toast(`Sample logged · ${sample.type}`);
+  renderAll();
+}
+
+function deleteSample(id) {
+  if (!confirm('Delete this sample entry?')) return;
+  DB.samples = DB.samples.filter(s => s.id !== id);
+  save(); renderAll();
+}
+
+// =================== INVENTORY ===================
+function toggleNewItem() {
+  const f = document.getElementById('newItemForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+function saveNewItem(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const item = {
+    id: 'item-' + uid(),
+    category: fd.get('category'),
+    description: fd.get('description'),
+    variant: fd.get('variant') || 'All Variants',
+    qty_ordered: parseInt(fd.get('qty_ordered')) || 0,
+    unit: fd.get('unit') || 'units',
+    supplier: fd.get('supplier') || '',
+    status: fd.get('status') || 'TBD',
+    qty_consumed: 0,
+    delivery_date: '', comments: '',
+  };
+  DB.inventory.push(item);
+  save(); e.target.reset(); toggleNewItem(); renderAll();
+  toast('Item added');
+}
+function updateInventoryField(id, field, value) {
+  const item = DB.inventory.find(i => i.id === id);
+  if (!item) return;
+  if (field === 'qty_ordered') value = parseInt(value) || 0;
+  item[field] = value;
+  save(); renderAll();
+}
+function deleteInventory(id) {
+  if (!confirm('Delete this inventory item?')) return;
+  DB.inventory = DB.inventory.filter(i => i.id !== id);
+  save(); renderAll();
+}
+
+// =================== STRAINS ===================
+function saveNewStrain(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const strain = {
+    id: fd.get('name').toLowerCase().replace(/\s+/g, '-'),
+    name: fd.get('name'),
+    type: fd.get('type'),
+    format: fd.get('format'),
+    breeder: fd.get('breeder') || '',
+    lineage: fd.get('lineage') || '',
+    thc: fd.get('thc') || '',
+  };
+  DB.strains.push(strain);
+  save(); e.target.reset(); populateStrainSelects(); renderAll();
+  toast('Strain added');
+}
+function deleteStrain(id) {
+  if (!confirm('Delete this strain?')) return;
+  DB.strains = DB.strains.filter(s => s.id !== id);
+  save(); populateStrainSelects(); renderAll();
+}
+
+// =================== RENDERING ===================
+function renderAll() {
+  renderDashboard();
+  renderProduction();
+  renderSamples();
+  renderInventory();
+  renderStrains();
+  renderSnapshot();
+}
+
+function renderDashboard() {
+  const totalFlower = DB.production.reduce((s, p) => s + (p.weightIn || 0), 0);
+  const totalJars = DB.production.filter(p => p.format === 'Jar').reduce((s, p) => s + p.unitsOut, 0);
+  const totalRolls = DB.production.filter(p => p.format === 'Pre-Roll').reduce((s, p) => s + p.unitsOut, 0);
+  const sampleG = DB.samples.filter(s => s.form === 'Flower (g)').reduce((s, x) => s + x.qty, 0);
+  const sampleUnits = DB.samples.filter(s => s.form !== 'Flower (g)').reduce((s, x) => s + x.qty, 0);
+  const lowStock = DB.inventory.filter(i => {
+    if (!i.qty_ordered) return false;
+    const remaining = i.qty_ordered - (i.qty_consumed || 0);
+    return remaining > 0 && remaining / i.qty_ordered < 0.2;
+  }).length;
+  const depleted = DB.inventory.filter(i => i.qty_ordered && (i.qty_consumed || 0) >= i.qty_ordered).length;
+
+  document.getElementById('kpiGrid').innerHTML = [
+    kpiCard('Flower Processed', totalFlower.toLocaleString(undefined, {maximumFractionDigits: 1}), 'g'),
+    kpiCard('Jars Produced', totalJars.toLocaleString(), '×7g'),
+    kpiCard('Pre-Rolls Produced', totalRolls.toLocaleString(), '×1g'),
+    kpiCard('Samples Sent', DB.samples.length, 'entries', `${sampleG.toFixed(1)}g + ${sampleUnits} units`),
+    kpiCard('Low Stock', lowStock, 'SKUs', '< 20% remaining'),
+    kpiCard('Depleted', depleted, 'SKUs'),
+  ].join('');
+
+  // Alerts
+  const alerts = [];
+  if (depleted > 0) alerts.push(`<div class="alert bad"><strong>⚠ ${depleted} component(s) depleted.</strong> Reorder or production will halt.</div>`);
+  if (lowStock > 0) alerts.push(`<div class="alert warn"><strong>⚠ ${lowStock} component(s) below 20% remaining.</strong> Reorder soon.</div>`);
+  const coaPending = DB.production.filter(p => p.coaPending).length;
+  if (coaPending > 0) alerts.push(`<div class="alert warn"><strong>📋 ${coaPending} batch(es) awaiting COA return.</strong></div>`);
+  if (!DB.production.length && !DB.samples.length) alerts.push(`<div class="alert good">Welcome to Dragonfly Kitchen — no runs yet. Log a production batch on the Production tab to start tracking.</div>`);
+  document.getElementById('alertsContainer').innerHTML = alerts.join('');
+
+  // Strain cards
+  document.getElementById('strainCards').innerHTML = DB.strains.map(s => {
+    const runs = DB.production.filter(p => p.strainId === s.id);
+    const units = runs.reduce((sum, r) => sum + r.unitsOut, 0);
+    const flower = runs.reduce((sum, r) => sum + r.weightIn, 0);
+    const samples = DB.samples.filter(x => x.strainId === s.id).length;
+    return `
+      <div class="strain-card">
+        <h4>${s.name}</h4>
+        <div class="strain-meta"><span class="badge ${s.type.toLowerCase()}">${s.type}</span> · ${s.format} · ${s.breeder}</div>
+        <div class="strain-counts">
+          <div class="count-block"><div class="count-num">${units.toLocaleString()}</div><div class="count-lbl">Units</div></div>
+          <div class="count-block"><div class="count-num">${flower.toFixed(0)}</div><div class="count-lbl">g Flower</div></div>
+          <div class="count-block"><div class="count-num">${samples}</div><div class="count-lbl">Samples</div></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Recent activity
+  const allEvents = [
+    ...DB.production.map(p => ({ ts: p.timestamp, kind: 'PRODUCTION', label: `${p.batchId} · ${p.strainName} · ${p.unitsOut} ${p.format}s` })),
+    ...DB.samples.map(s => ({ ts: s.timestamp, kind: s.type.toUpperCase(), label: `${s.strainName || '—'} · ${s.qty} ${s.form} → ${s.recipient || 'unspecified'}` })),
+  ].sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 12);
+  document.getElementById('recentActivity').innerHTML = allEvents.length ? `
+    <table><thead><tr><th>When</th><th>Type</th><th>Detail</th></tr></thead><tbody>
+    ${allEvents.map(e => `<tr><td class="mono" style="font-size:11px;color:var(--ink-mute)">${new Date(e.ts).toLocaleString()}</td><td><span class="badge tbd">${e.kind}</span></td><td>${e.label}</td></tr>`).join('')}
+    </tbody></table>` : `<div class="empty"><div class="display">No activity yet</div>Log a run or sample to populate this feed.</div>`;
+}
+
+function kpiCard(label, value, unit, delta) {
+  return `<div class="kpi"><div class="kpi-label">${label}</div>
+    <div><span class="kpi-value">${value}</span><span class="kpi-unit">${unit||''}</span></div>
+    ${delta ? `<div class="kpi-delta">${delta}</div>` : ''}</div>`;
+}
+
+function renderProduction() {
+  const filter = (document.getElementById('prodFilter')?.value || '').toLowerCase();
+  const fmt = document.getElementById('prodFormatFilter')?.value || '';
+  let rows = DB.production;
+  if (filter) rows = rows.filter(p => (p.batchId + ' ' + p.strainName + ' ' + (p.operator||'')).toLowerCase().includes(filter));
+  if (fmt) rows = rows.filter(p => p.format === fmt);
+  document.getElementById('prodCount').textContent = `${rows.length} of ${DB.production.length} runs`;
+  document.getElementById('productionLog').innerHTML = rows.length === 0 ? `<div class="empty"><div class="display">No runs logged</div></div>` : `
+    <table><thead><tr>
+      <th>Date</th><th>Batch</th><th>Strain</th><th>Format</th><th>In (g)</th><th>Units</th><th>Yield</th><th>Op</th><th>Notes</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(p => {
+      const target = TARGET_PER_UNIT_G[p.format];
+      const yieldPct = p.weightIn ? ((p.unitsOut * target / p.weightIn) * 100).toFixed(0) : '—';
+      return `<tr>
+        <td class="mono" style="font-size:11px">${p.date}</td>
+        <td class="mono" style="font-size:11px;color:var(--gold)">${p.batchId}</td>
+        <td><span class="pill-strain"><span class="dot ${p.strainType}"></span>${p.strainName}</span></td>
+        <td><span class="badge tbd">${p.format}</span></td>
+        <td>${p.weightIn?.toFixed(1) || '—'}</td>
+        <td><strong>${p.unitsOut}</strong></td>
+        <td class="mono" style="font-size:11px">${yieldPct}%</td>
+        <td class="mono" style="font-size:11px">${p.operator || '—'}</td>
+        <td style="font-size:12px;color:var(--ink-mute);max-width:200px">${p.coaPending ? '<span class="badge on-order">COA pending</span> ' : ''}${p.notes || ''}</td>
+        <td><button class="icon-btn danger" onclick="deleteProduction('${p.id}')">×</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+function renderSamples() {
+  const filter = (document.getElementById('sampleFilter')?.value || '').toLowerCase();
+  const tFilter = document.getElementById('sampleTypeFilter')?.value || '';
+  let rows = DB.samples;
+  if (filter) rows = rows.filter(s => (s.type + ' ' + (s.strainName||'') + ' ' + (s.recipient||'') + ' ' + (s.batchId||'')).toLowerCase().includes(filter));
+  if (tFilter) rows = rows.filter(s => s.type === tFilter);
+  document.getElementById('sampleCount').textContent = `${rows.length} of ${DB.samples.length} samples`;
+  document.getElementById('sampleLog').innerHTML = rows.length === 0 ? `<div class="empty"><div class="display">No samples logged</div></div>` : `
+    <table><thead><tr>
+      <th>Date</th><th>Type</th><th>Strain</th><th>Form</th><th>Qty</th><th>Recipient</th><th>Batch / Ref</th><th>Notes</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(s => `<tr>
+      <td class="mono" style="font-size:11px">${s.date}</td>
+      <td><span class="badge tbd">${s.type}</span></td>
+      <td>${s.strainName ? `<span class="pill-strain"><span class="dot ${s.strainType}"></span>${s.strainName}</span>` : '—'}</td>
+      <td class="mono" style="font-size:11px">${s.form}</td>
+      <td><strong>${s.qty}</strong></td>
+      <td>${s.recipient || '—'}</td>
+      <td class="mono" style="font-size:11px;color:var(--gold)">${s.batchId || ''}${s.batchId && s.reference ? ' · ' : ''}${s.reference || ''}</td>
+      <td style="font-size:12px;color:var(--ink-mute);max-width:200px">${s.notes || ''}</td>
+      <td><button class="icon-btn danger" onclick="deleteSample('${s.id}')">×</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function renderInventory() {
+  // Populate category filter
+  const cats = [...new Set(DB.inventory.map(i => i.category))].filter(Boolean);
+  const catSel = document.getElementById('invCategoryFilter');
+  const currentCat = catSel.value;
+  catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option ${c === currentCat ? 'selected' : ''}>${c}</option>`).join('');
+
+  const filter = (document.getElementById('invFilter')?.value || '').toLowerCase();
+  const cFilter = catSel.value;
+  const sFilter = document.getElementById('invStatusFilter')?.value || '';
+  let rows = DB.inventory;
+  if (filter) rows = rows.filter(i => (i.description + ' ' + (i.supplier||'') + ' ' + (i.variant||'')).toLowerCase().includes(filter));
+  if (cFilter) rows = rows.filter(i => i.category === cFilter);
+  if (sFilter) rows = rows.filter(i => i.status === sFilter);
+  document.getElementById('invCount').textContent = `${rows.length} of ${DB.inventory.length} components`;
+
+  document.getElementById('inventoryTable').innerHTML = `
+    <table><thead><tr>
+      <th>Category</th><th>Description</th><th>Variant</th><th>Ordered</th><th>Used</th><th>Remaining</th><th>Health</th><th>Supplier</th><th>Status</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(i => {
+      const used = i.qty_consumed || 0;
+      const ordered = i.qty_ordered || 0;
+      const remaining = ordered - used;
+      const pct = ordered > 0 ? Math.max(0, Math.min(100, (remaining / ordered) * 100)) : 0;
+      const healthClass = pct === 0 && ordered > 0 ? 'bad' : pct < 20 ? 'bad' : pct < 50 ? 'warn' : '';
+      const stKey = (i.status || '').toLowerCase().replace(/[^a-z]/g, '-');
+      const stClass = remaining <= 0 && ordered > 0 ? 'depleted' : stKey;
+      return `<tr>
+        <td class="mono" style="font-size:10px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em">${i.category||''}</td>
+        <td><strong style="font-size:13px">${i.description}</strong>${i.comments ? `<div style="font-size:11px;color:var(--ink-mute);margin-top:2px">${i.comments}</div>` : ''}</td>
+        <td>${getVariantBadge(i.variant)}</td>
+        <td><input type="number" value="${ordered}" onchange="updateInventoryField('${i.id}','qty_ordered',this.value)" style="width:80px;padding:4px 8px;font-size:12px"></td>
+        <td><strong>${used.toLocaleString()}</strong></td>
+        <td><strong style="color:${remaining <= 0 ? 'var(--bad)' : 'var(--ink)'}">${remaining.toLocaleString()}</strong> ${i.unit || ''}</td>
+        <td style="min-width:100px"><div class="health-bar"><div class="health-fill ${healthClass}" style="width:${pct}%"></div></div><div class="mono" style="font-size:10px;color:var(--ink-mute);margin-top:2px">${pct.toFixed(0)}%</div></td>
+        <td style="font-size:12px">${i.supplier||''}</td>
+        <td><select onchange="updateInventoryField('${i.id}','status',this.value)" style="padding:4px 8px;font-size:11px">
+          ${['In Hand','On Order','TBD','On Demand'].map(o => `<option ${i.status===o?'selected':''}>${o}</option>`).join('')}
+        </select></td>
+        <td><button class="icon-btn danger" onclick="deleteInventory('${i.id}')">×</button></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+function getVariantBadge(v) {
+  if (!v) return '';
+  const lc = v.toLowerCase();
+  if (lc.includes('indica')) return `<span class="badge indica">${v}</span>`;
+  if (lc.includes('sativa')) return `<span class="badge sativa">${v}</span>`;
+  if (lc.includes('hybrid')) return `<span class="badge hybrid">${v}</span>`;
+  return `<span class="badge tbd">${v}</span>`;
+}
+
+function renderStrains() {
+  document.getElementById('strainList').innerHTML = `
+    <table><thead><tr><th>Name</th><th>Type</th><th>Format</th><th>Breeder</th><th>Lineage</th><th>THC</th><th></th></tr></thead><tbody>
+    ${DB.strains.map(s => `<tr>
+      <td><strong>${s.name}</strong></td>
+      <td><span class="badge ${s.type.toLowerCase()}">${s.type}</span></td>
+      <td>${s.format}</td>
+      <td style="font-size:12px">${s.breeder || ''}</td>
+      <td class="mono" style="font-size:11px;color:var(--ink-mute)">${s.lineage || ''}</td>
+      <td class="mono" style="font-size:11px">${s.thc || ''}</td>
+      <td><button class="icon-btn danger" onclick="deleteStrain('${s.id}')">×</button></td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function renderSnapshot() {
+  const totalFlower = DB.production.reduce((s,p)=>s+p.weightIn,0);
+  const totalJarsByStrain = {};
+  const totalRollsByStrain = {};
+  DB.production.forEach(p => {
+    const k = p.strainName;
+    if (p.format === 'Jar') totalJarsByStrain[k] = (totalJarsByStrain[k]||0) + p.unitsOut;
+    else totalRollsByStrain[k] = (totalRollsByStrain[k]||0) + p.unitsOut;
+  });
+  document.getElementById('snapshotReport').innerHTML = `
+    <div class="kpi-grid">
+      ${kpiCard('Total Runs', DB.production.length)}
+      ${kpiCard('Flower Processed', totalFlower.toFixed(1), 'g')}
+      ${kpiCard('Total Jars', Object.values(totalJarsByStrain).reduce((a,b)=>a+b,0))}
+      ${kpiCard('Total Pre-Rolls', Object.values(totalRollsByStrain).reduce((a,b)=>a+b,0))}
+    </div>
+    <h3 class="display" style="font-size:24px;margin:24px 0 12px">By Strain</h3>
+    <table><thead><tr><th>Strain</th><th>Type</th><th>Jars</th><th>Pre-Rolls</th><th>Flower (g)</th></tr></thead><tbody>
+    ${DB.strains.map(s => {
+      const runs = DB.production.filter(p => p.strainId === s.id);
+      const jars = runs.filter(r => r.format === 'Jar').reduce((a,b)=>a+b.unitsOut,0);
+      const rolls = runs.filter(r => r.format === 'Pre-Roll').reduce((a,b)=>a+b.unitsOut,0);
+      const g = runs.reduce((a,b)=>a+b.weightIn,0);
+      return `<tr><td><strong>${s.name}</strong></td><td><span class="badge ${s.type.toLowerCase()}">${s.type}</span></td><td>${jars.toLocaleString()}</td><td>${rolls.toLocaleString()}</td><td>${g.toFixed(1)}</td></tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+// =================== EXPORT / IMPORT ===================
+function exportData() {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `dfly-kitchen-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('Backup downloaded');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!confirm('Import will REPLACE all current data. Continue?')) return;
+      DB = data;
+      save(); populateStrainSelects(); renderAll();
+      toast('Data imported');
+    } catch (err) { toast('Invalid JSON', true); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function resetData() {
+  if (!confirm('Wipe ALL data and re-seed from Drop 1 defaults? This cannot be undone (export first).')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+function exportCSV(kind) {
+  let rows = [];
+  let header = [];
+  if (kind === 'production') {
+    header = ['Date','Batch ID','Strain','Type','Format','Weight In (g)','Units Out','Yield %','Operator','COA Pending','Notes'];
+    rows = DB.production.map(p => {
+      const target = TARGET_PER_UNIT_G[p.format];
+      const yp = p.weightIn ? ((p.unitsOut*target/p.weightIn)*100).toFixed(1) : '';
+      return [p.date, p.batchId, p.strainName, p.strainType, p.format, p.weightIn, p.unitsOut, yp, p.operator, p.coaPending?'YES':'', (p.notes||'').replace(/[\r\n]/g,' ')];
+    });
+  } else if (kind === 'samples') {
+    header = ['Date','Type','Strain','Variant Type','Batch','Form','Qty','Recipient','Reference','Notes'];
+    rows = DB.samples.map(s => [s.date, s.type, s.strainName, s.strainType, s.batchId, s.form, s.qty, s.recipient, s.reference, (s.notes||'').replace(/[\r\n]/g,' ')]);
+  } else if (kind === 'inventory') {
+    header = ['Category','Description','Variant','Ordered','Consumed','Remaining','Unit','Supplier','Status','Comments'];
+    rows = DB.inventory.map(i => {
+      const used = i.qty_consumed || 0;
+      const remaining = (i.qty_ordered||0) - used;
+      return [i.category, i.description, i.variant, i.qty_ordered, used, remaining, i.unit, i.supplier, i.status, (i.comments||'').replace(/[\r\n]/g,' ')];
+    });
+  }
+  const csv = [header, ...rows].map(r => r.map(c => {
+    const s = String(c ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `dfly-${kind}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast(`${kind} CSV exported`);
+}
+
+init();
+</script>
+</body>
+</html>

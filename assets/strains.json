@@ -1,0 +1,9 @@
+[
+  {"id": "cherry-gushers", "name": "Cherry Gushers", "type": "Indica", "secondaryType": "Hybrid", "format": "Jar", "breeder": "Barney's Farm × Backpack Boyz", "lineage": "Black Cherry Punch × Gushers", "thc": "28-32%"},
+  {"id": "haze", "name": "Haze", "type": "Sativa", "format": "Jar", "breeder": "Greenhouse Seed Co.", "lineage": "Mex × Col × Thai × S. Indian", "thc": "18-22%"},
+  {"id": "double-runtz", "name": "Double Runtz", "type": "Hybrid", "format": "Jar", "breeder": "7ACRES", "lineage": "Detroit Runtz × Forbidden Runtz", "thc": "24-28%"},
+  {"id": "nyc-diesel", "name": "NYC Diesel", "type": "Sativa", "format": "Jar", "breeder": "Exotic Genetix / Soma's Sacred Seeds", "lineage": "Mexican × Afghani heritage", "thc": "20-25%"},
+  {"id": "hella-jelly", "name": "Hella Jelly", "type": "Sativa", "format": "Pre-Roll", "breeder": "Humboldt Seed Co.", "lineage": "Notorious THC × Very Cherry", "thc": "26-30%"},
+  {"id": "super-boof", "name": "Super Boof", "type": "Hybrid", "format": "Pre-Roll", "breeder": "Blockhead", "lineage": "Black Cherry Punch × Tropicana Cookies", "thc": "28-32%"},
+  {"id": "grape-nana", "name": "Grape Nana", "type": "Indica", "format": "Pre-Roll", "breeder": "Cannarado Genetics", "lineage": "Banana OG × Grape Pie BX", "thc": "20-24%"}
+]
