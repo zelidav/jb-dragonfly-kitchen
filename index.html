@@ -659,11 +659,38 @@
 
 <script>
 // =================== DATA LAYER ===================
-const STORAGE_KEY = 'jbd_dfly_kitchen_v1';
+const STORAGE_KEY = 'jbd_dfly_kitchen_v2';
+const AUTH_KEY = 'jbd_dfly_auth';
+const API_BASE = (location.hostname === 'localhost' || location.protocol === 'file:')
+  ? 'https://app.cannacrypted.com'
+  : 'https://app.cannacrypted.com';
 let DB = { production: [], samples: [], inventory: [], strains: [], meta: {} };
+let AUTH = localStorage.getItem(AUTH_KEY) || '';
+let ONLINE = true;
 
-const SEED_INVENTORY_URL = 'assets/inventory-seed.json';
-const SEED_STRAINS_URL = 'assets/strains.json';
+async function api(path, opts = {}) {
+  const headers = Object.assign({
+    'Content-Type': 'application/json',
+    'X-Kitchen-Auth': AUTH,
+  }, opts.headers || {});
+  const res = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+  if (res.status === 401) {
+    promptForAuth();
+    throw new Error('unauthorized');
+  }
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+function promptForAuth() {
+  const pw = prompt('Kitchen password:');
+  if (pw) {
+    AUTH = pw;
+    localStorage.setItem(AUTH_KEY, pw);
+    return true;
+  }
+  return false;
+}
 
 // Component consumption ratios per finished unit
 const RECIPE = {
@@ -699,28 +726,73 @@ const RECIPE = {
 const TARGET_PER_UNIT_G = { 'Jar': 7, 'Pre-Roll': 1 };
 
 async function init() {
+  // Hydrate from cache instantly so the UI isn't empty during fetch
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
     try { DB = JSON.parse(raw); } catch (e) { console.error(e); }
   }
-  if (!DB.inventory || DB.inventory.length === 0) {
-    DB.inventory = await fetch(SEED_INVENTORY_URL).then(r => r.json()).catch(() => []);
-  }
-  if (!DB.strains || DB.strains.length === 0) {
-    DB.strains = await fetch(SEED_STRAINS_URL).then(r => r.json()).catch(() => []);
-  }
-  DB.production = DB.production || [];
-  DB.samples = DB.samples || [];
-  DB.meta = DB.meta || { created: new Date().toISOString() };
-  save();
   setupTabs();
   setupForms();
   populateStrainSelects();
   renderAll();
+
+  if (!AUTH) promptForAuth();
+  await refresh();
 }
 
-function save() {
+function cache() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+}
+
+async function refresh() {
+  try {
+    const state = await api('/api/dfly/state');
+    DB.inventory = state.inventory || [];
+    DB.strains = state.strains || [];
+    // Map snake_case API fields to the camelCase the frontend expects
+    DB.production = (state.production || []).map(p => ({
+      id: p.id, date: p.date, strainId: p.strain_id, strainName: p.strain_name,
+      strainType: p.strain_type, format: p.format, batchId: p.batch_id,
+      weightIn: parseFloat(p.weight_in || 0), unitsOut: parseInt(p.units_out || 0),
+      operator: p.operator, notes: p.notes, coaPending: p.coa_pending,
+      componentsConsumed: p.components_consumed, timestamp: p.created_at,
+    }));
+    DB.samples = (state.samples || []).map(s => ({
+      id: s.id, date: s.date, type: s.type, strainId: s.strain_id,
+      strainName: s.strain_name, strainType: s.strain_type, batchId: s.batch_id,
+      form: s.form, qty: parseFloat(s.qty || 0), recipient: s.recipient,
+      reference: s.reference, notes: s.notes, timestamp: s.created_at,
+    }));
+    // Inventory comes back as snake_case too — patch it
+    DB.inventory = DB.inventory.map(i => ({
+      id: i.id, category: i.category, description: i.description, variant: i.variant,
+      qty_ordered: i.qty_ordered, qty_consumed: i.qty_consumed || 0,
+      unit: i.unit, supplier: i.supplier, status: i.status,
+      delivery_date: i.delivery_date, comments: i.comments,
+    }));
+    ONLINE = true;
+    setOnlineState(true);
+    cache();
+    populateStrainSelects();
+    renderAll();
+  } catch (e) {
+    console.warn('Refresh failed, using cached data:', e);
+    ONLINE = false;
+    setOnlineState(false);
+  }
+}
+
+function setOnlineState(online) {
+  let badge = document.getElementById('onlineBadge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.id = 'onlineBadge';
+    badge.style.cssText = 'font-family:JetBrains Mono,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.14em;padding:4px 10px;border-radius:2px;margin-right:8px;';
+    document.querySelector('.header-actions').prepend(badge);
+  }
+  badge.textContent = online ? '● LIVE' : '● OFFLINE (CACHED)';
+  badge.style.color = online ? 'var(--good)' : 'var(--bad)';
+  badge.style.border = '1px solid ' + (online ? 'var(--good)' : 'var(--bad)');
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -794,114 +866,67 @@ function previewComponents(fmt, units) {
 }
 
 // =================== PRODUCTION ===================
-function saveProduction(e) {
+async function saveProduction(e) {
   e.preventDefault();
   const f = e.target;
   const strain = DB.strains.find(s => s.id === f.strainId.value);
   if (!strain) return toast('Pick a strain', true);
-
-  const run = {
-    id: uid(),
+  const payload = {
     date: f.date.value,
-    strainId: strain.id,
-    strainName: strain.name,
-    strainType: strain.type,
-    format: f.format.value,
-    batchId: f.batchId.value.trim(),
-    weightIn: parseFloat(f.weightIn.value),
-    unitsOut: parseInt(f.unitsOut.value),
-    operator: f.operator.value.trim(),
-    notes: f.notes.value.trim(),
+    strainId: strain.id, strainName: strain.name, strainType: strain.type,
+    format: f.format.value, batchId: f.batchId.value.trim(),
+    weightIn: parseFloat(f.weightIn.value), unitsOut: parseInt(f.unitsOut.value),
+    operator: f.operator.value.trim(), notes: f.notes.value.trim(),
     coaPending: f.coaPending.checked,
-    timestamp: new Date().toISOString(),
   };
-
-  // Auto-deduct components
-  const result = consumeComponents(run.format, strain.type, run.unitsOut);
-  run.componentsConsumed = result.consumed;
-  if (result.warnings.length) {
-    toast('Saved, but: ' + result.warnings.join('; '), true);
-  } else {
-    toast(`Run saved · ${run.batchId}`);
-  }
-
-  DB.production.unshift(run);
-  save();
-  f.reset();
-  document.querySelector('#productionForm input[name=date]').value = new Date().toISOString().slice(0,10);
-  document.getElementById('componentPreview').textContent = '';
-  renderAll();
+  try {
+    const res = await api('/api/dfly/production', { method: 'POST', body: JSON.stringify(payload) });
+    if (res.warnings && res.warnings.length) toast('Saved, but: ' + res.warnings.join('; '), true);
+    else toast(`Run saved · ${payload.batchId}`);
+    f.reset();
+    document.querySelector('#productionForm input[name=date]').value = new Date().toISOString().slice(0,10);
+    document.getElementById('componentPreview').textContent = '';
+    await refresh();
+  } catch (err) { toast('Save failed: ' + err.message, true); }
 }
 
-function consumeComponents(fmt, type, units) {
-  const recipe = RECIPE[fmt];
-  if (!recipe) return { consumed: [], warnings: [] };
-  const consumed = [];
-  const warnings = [];
-  const apply = (item, qty) => {
-    item.qty_consumed = (item.qty_consumed || 0) + qty;
-    consumed.push({ id: item.id, desc: item.description, variant: item.variant, qty });
-    const remaining = (item.qty_ordered || 0) - item.qty_consumed;
-    if (remaining < 0) warnings.push(`${item.description} (${item.variant}) overdrawn by ${Math.abs(remaining)}`);
-  };
-  for (const r of recipe.perUnit) {
-    const item = DB.inventory.find(i => r.match(i, type));
-    if (item) apply(item, r.qty * units);
-    else warnings.push(`Missing component: ${r.match.toString().slice(0,80)}`);
-  }
-  const cases = Math.ceil(units / recipe.perCase);
-  for (const r of recipe.caseComponents) {
-    const item = DB.inventory.find(i => r.match(i));
-    if (item) apply(item, r.qty * cases);
-  }
-  return { consumed, warnings };
-}
-
-function deleteProduction(id) {
+async function deleteProduction(id) {
   if (!confirm('Delete this run? Components will be returned to inventory.')) return;
-  const run = DB.production.find(p => p.id === id);
-  if (run && run.componentsConsumed) {
-    for (const c of run.componentsConsumed) {
-      const item = DB.inventory.find(i => i.id === c.id);
-      if (item) item.qty_consumed = Math.max(0, (item.qty_consumed || 0) - c.qty);
-    }
-  }
-  DB.production = DB.production.filter(p => p.id !== id);
-  save(); renderAll(); toast('Run deleted, components restored');
+  try {
+    await api(`/api/dfly/production/${id}`, { method: 'DELETE' });
+    toast('Run deleted, components restored');
+    await refresh();
+  } catch (err) { toast('Delete failed: ' + err.message, true); }
 }
 
 // =================== SAMPLES ===================
-function saveSample(e) {
+async function saveSample(e) {
   e.preventDefault();
   const f = e.target;
   const strain = DB.strains.find(s => s.id === f.strainId.value);
-  const sample = {
-    id: uid(),
-    date: f.date.value,
-    type: f.type.value,
-    strainId: strain ? strain.id : '',
-    strainName: strain ? strain.name : '',
+  const payload = {
+    date: f.date.value, type: f.type.value,
+    strainId: strain ? strain.id : '', strainName: strain ? strain.name : '',
     strainType: strain ? strain.type : '',
-    batchId: f.batchId.value.trim(),
-    form: f.form.value,
-    qty: parseFloat(f.qty.value),
-    recipient: f.recipient.value.trim(),
-    reference: f.reference.value.trim(),
-    notes: f.notes.value.trim(),
-    timestamp: new Date().toISOString(),
+    batchId: f.batchId.value.trim(), form: f.form.value,
+    qty: parseFloat(f.qty.value), recipient: f.recipient.value.trim(),
+    reference: f.reference.value.trim(), notes: f.notes.value.trim(),
   };
-  DB.samples.unshift(sample);
-  save();
-  f.reset();
-  document.querySelector('#sampleForm input[name=date]').value = new Date().toISOString().slice(0,10);
-  toast(`Sample logged · ${sample.type}`);
-  renderAll();
+  try {
+    await api('/api/dfly/samples', { method: 'POST', body: JSON.stringify(payload) });
+    f.reset();
+    document.querySelector('#sampleForm input[name=date]').value = new Date().toISOString().slice(0,10);
+    toast(`Sample logged · ${payload.type}`);
+    await refresh();
+  } catch (err) { toast('Save failed: ' + err.message, true); }
 }
 
-function deleteSample(id) {
+async function deleteSample(id) {
   if (!confirm('Delete this sample entry?')) return;
-  DB.samples = DB.samples.filter(s => s.id !== id);
-  save(); renderAll();
+  try {
+    await api(`/api/dfly/samples/${id}`, { method: 'DELETE' });
+    await refresh();
+  } catch (err) { toast('Delete failed: ' + err.message, true); }
 }
 
 // =================== INVENTORY ===================
@@ -909,59 +934,64 @@ function toggleNewItem() {
   const f = document.getElementById('newItemForm');
   f.style.display = f.style.display === 'none' ? 'block' : 'none';
 }
-function saveNewItem(e) {
+async function saveNewItem(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const item = {
-    id: 'item-' + uid(),
-    category: fd.get('category'),
-    description: fd.get('description'),
+  const payload = {
+    category: fd.get('category'), description: fd.get('description'),
     variant: fd.get('variant') || 'All Variants',
     qty_ordered: parseInt(fd.get('qty_ordered')) || 0,
     unit: fd.get('unit') || 'units',
     supplier: fd.get('supplier') || '',
     status: fd.get('status') || 'TBD',
-    qty_consumed: 0,
-    delivery_date: '', comments: '',
   };
-  DB.inventory.push(item);
-  save(); e.target.reset(); toggleNewItem(); renderAll();
-  toast('Item added');
+  try {
+    await api('/api/dfly/inventory', { method: 'POST', body: JSON.stringify(payload) });
+    e.target.reset(); toggleNewItem(); await refresh();
+    toast('Item added');
+  } catch (err) { toast('Add failed: ' + err.message, true); }
 }
-function updateInventoryField(id, field, value) {
-  const item = DB.inventory.find(i => i.id === id);
-  if (!item) return;
+let _invDebounce = {};
+async function updateInventoryField(id, field, value) {
   if (field === 'qty_ordered') value = parseInt(value) || 0;
-  item[field] = value;
-  save(); renderAll();
+  // Debounce per-item to avoid hammering API while user types
+  clearTimeout(_invDebounce[id]);
+  _invDebounce[id] = setTimeout(async () => {
+    try {
+      await api(`/api/dfly/inventory/${id}`, { method: 'PATCH', body: JSON.stringify({ [field]: value }) });
+      await refresh();
+    } catch (err) { toast('Update failed: ' + err.message, true); }
+  }, 350);
 }
-function deleteInventory(id) {
+async function deleteInventory(id) {
   if (!confirm('Delete this inventory item?')) return;
-  DB.inventory = DB.inventory.filter(i => i.id !== id);
-  save(); renderAll();
+  try {
+    await api(`/api/dfly/inventory/${id}`, { method: 'DELETE' });
+    await refresh();
+  } catch (err) { toast('Delete failed: ' + err.message, true); }
 }
 
 // =================== STRAINS ===================
-function saveNewStrain(e) {
+async function saveNewStrain(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const strain = {
-    id: fd.get('name').toLowerCase().replace(/\s+/g, '-'),
-    name: fd.get('name'),
-    type: fd.get('type'),
-    format: fd.get('format'),
-    breeder: fd.get('breeder') || '',
-    lineage: fd.get('lineage') || '',
+  const payload = {
+    name: fd.get('name'), type: fd.get('type'), format: fd.get('format'),
+    breeder: fd.get('breeder') || '', lineage: fd.get('lineage') || '',
     thc: fd.get('thc') || '',
   };
-  DB.strains.push(strain);
-  save(); e.target.reset(); populateStrainSelects(); renderAll();
-  toast('Strain added');
+  try {
+    await api('/api/dfly/strains', { method: 'POST', body: JSON.stringify(payload) });
+    e.target.reset(); await refresh();
+    toast('Strain added');
+  } catch (err) { toast('Add failed: ' + err.message, true); }
 }
-function deleteStrain(id) {
+async function deleteStrain(id) {
   if (!confirm('Delete this strain?')) return;
-  DB.strains = DB.strains.filter(s => s.id !== id);
-  save(); populateStrainSelects(); renderAll();
+  try {
+    await api(`/api/dfly/strains/${id}`, { method: 'DELETE' });
+    await refresh();
+  } catch (err) { toast('Delete failed: ' + err.message, true); }
 }
 
 // =================== RENDERING ===================
@@ -1204,26 +1234,17 @@ function exportData() {
 }
 
 function importData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (!confirm('Import will REPLACE all current data. Continue?')) return;
-      DB = data;
-      save(); populateStrainSelects(); renderAll();
-      toast('Data imported');
-    } catch (err) { toast('Invalid JSON', true); }
-  };
-  reader.readAsText(file);
+  toast('Import disabled in cloud mode — use Reset on the server to re-seed', true);
   e.target.value = '';
 }
 
 function resetData() {
-  if (!confirm('Wipe ALL data and re-seed from Drop 1 defaults? This cannot be undone (export first).')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
+  const newPw = prompt('Forget kitchen password and re-prompt? Type RESET to confirm:');
+  if (newPw === 'RESET') {
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
 }
 
 function exportCSV(kind) {
