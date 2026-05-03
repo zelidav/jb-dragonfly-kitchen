@@ -297,7 +297,8 @@
   <div class="tabs-inner">
     <button class="tab active" data-view="dashboard">Dashboard</button>
     <button class="tab" data-view="production">Production</button>
-    <button class="tab" data-view="samples">Samples / Testing</button>
+    <button class="tab" data-view="samples">Samples Out</button>
+    <button class="tab" data-view="lab">Lab Testing &amp; COA</button>
     <button class="tab" data-view="inventory">Inventory</button>
     <button class="tab" data-view="strains">Strains</button>
     <button class="tab" data-view="reports">Reports</button>
@@ -504,6 +505,190 @@
     </div>
   </section>
 
+  <!-- LAB TESTING & COA -->
+  <section class="view" id="view-lab">
+    <h1 class="view-title">Lab Testing &amp; COA</h1>
+    <p class="view-sub">Track NY state batch IDs, METRC tags, lab submissions, and COA results. Pass/fail logged per panel — failures block the batch from sale.</p>
+
+    <div class="kpi-grid" id="labKpis"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">New Lab Submission</div>
+        <button class="btn btn-sm" onclick="suggestLabSampleId()">Suggest Sample ID</button>
+      </div>
+      <div class="panel-body">
+        <form id="labSubmitForm" onsubmit="saveLabTest(event)">
+          <div class="form-grid">
+            <div>
+              <label>Date Submitted</label>
+              <input type="date" name="submitted_date" required>
+            </div>
+            <div>
+              <label>Strain</label>
+              <select name="strainId" required onchange="onLabStrainChange(this)"></select>
+            </div>
+            <div>
+              <label>Production Batch ID</label>
+              <input type="text" name="batchId" placeholder="JBD-NY1-CG-260501-01" list="batchIdList">
+              <datalist id="batchIdList"></datalist>
+            </div>
+            <div>
+              <label>State-Assigned Batch ID</label>
+              <input type="text" name="state_batch_id" placeholder="NY-OCM-...">
+            </div>
+            <div>
+              <label>METRC Tag</label>
+              <input type="text" name="metrc_tag" placeholder="1A4...">
+            </div>
+            <div>
+              <label>Lab Sample ID (internal)</label>
+              <input type="text" name="sample_id" placeholder="DFLY-LAB-260501-01">
+            </div>
+            <div>
+              <label>Testing Lab</label>
+              <input type="text" name="lab_name" placeholder="ProVerde / Kaycha / etc." list="labList">
+              <datalist id="labList">
+                <option value="Kaycha Labs"><option value="ProVerde Labs"><option value="Steep Hill"><option value="Confidence Analytics"><option value="MCR Labs"><option value="Lighthouse Labs">
+              </datalist>
+            </div>
+            <div>
+              <label>Lab Sample ID</label>
+              <input type="text" name="lab_sample_id" placeholder="Lab's reference">
+            </div>
+            <div>
+              <label>Sample Weight (g)</label>
+              <input type="number" step="0.01" name="sample_weight_g">
+            </div>
+            <div>
+              <label>Cost ($)</label>
+              <input type="number" step="0.01" name="cost">
+            </div>
+            <div>
+              <label>Status</label>
+              <select name="status">
+                <option value="Submitted">Submitted</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Complete">Complete</option>
+                <option value="Failed">Failed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="full">
+              <label>Notes</label>
+              <textarea name="notes" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Log Submission</button>
+            <button type="reset" class="btn">Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Lab Test Log</div>
+        <span class="mono" style="font-size:11px;color:var(--ink-mute)" id="labCount"></span>
+      </div>
+      <div class="filter-bar" style="padding: 16px 24px 0">
+        <input type="search" id="labFilter" placeholder="Search batch / state ID / lab / strain..." oninput="renderLabTests()">
+        <select id="labStatusFilter" onchange="renderLabTests()">
+          <option value="">All Statuses</option>
+          <option>Submitted</option><option>In Progress</option><option>Complete</option><option>Failed</option><option>Cancelled</option>
+        </select>
+        <select id="labResultFilter" onchange="renderLabTests()">
+          <option value="">All Results</option>
+          <option>Pending</option><option>Pass</option><option>Fail</option>
+        </select>
+      </div>
+      <div class="panel-body" id="labLog" style="overflow-x:auto"></div>
+    </div>
+  </section>
+
+  <!-- LAB RESULTS MODAL -->
+  <div class="modal-bg" id="labResultsModal">
+    <div class="modal" style="max-width:880px">
+      <div class="modal-head">
+        <div class="panel-title" id="labResultsTitle">Record Results</div>
+        <button class="icon-btn" onclick="closeLabModal()">CLOSE</button>
+      </div>
+      <div class="modal-body">
+        <form id="labResultsForm" onsubmit="saveLabResults(event)">
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <div>
+              <label>Date Received</label>
+              <input type="date" name="received_date">
+            </div>
+            <div>
+              <label>Status</label>
+              <select name="status">
+                <option>Submitted</option><option>In Progress</option><option>Complete</option><option>Failed</option><option>Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label>Overall Result</label>
+              <select name="overall_result">
+                <option>Pending</option><option>Pass</option><option>Fail</option>
+              </select>
+            </div>
+          </div>
+          <h4 class="display" style="font-size:18px;margin:20px 0 8px;color:var(--gold)">CANNABINOIDS (%)</h4>
+          <div class="form-grid">
+            <div><label>THC Total</label><input type="number" step="0.01" name="thc_total"></div>
+            <div><label>THCa</label><input type="number" step="0.01" name="thca"></div>
+            <div><label>CBD Total</label><input type="number" step="0.01" name="cbd_total"></div>
+            <div><label>CBDa</label><input type="number" step="0.01" name="cbda"></div>
+            <div><label>Total Cannabinoids</label><input type="number" step="0.01" name="total_cannabinoids"></div>
+          </div>
+          <h4 class="display" style="font-size:18px;margin:20px 0 8px;color:var(--gold)">TERPENES</h4>
+          <div class="form-grid">
+            <div><label>Total Terpenes (%)</label><input type="number" step="0.01" name="terpenes_total"></div>
+            <div><label>Dominant Terpene</label><input type="text" name="dominant_terpene" placeholder="Caryophyllene / Limonene / ..."></div>
+          </div>
+          <h4 class="display" style="font-size:18px;margin:20px 0 8px;color:var(--gold)">PHYSICAL</h4>
+          <div class="form-grid">
+            <div><label>Moisture (%)</label><input type="number" step="0.01" name="moisture"></div>
+            <div><label>Water Activity (aW)</label><input type="number" step="0.001" name="water_activity"></div>
+          </div>
+          <h4 class="display" style="font-size:18px;margin:20px 0 8px;color:var(--gold)">SAFETY PANELS</h4>
+          <div class="form-grid">
+            <div><label class="checkbox-row"><input type="checkbox" name="microbials_pass"> Microbials Pass</label></div>
+            <div><label class="checkbox-row"><input type="checkbox" name="mycotoxins_pass"> Mycotoxins Pass</label></div>
+            <div><label class="checkbox-row"><input type="checkbox" name="pesticides_pass"> Pesticides Pass</label></div>
+            <div><label class="checkbox-row"><input type="checkbox" name="heavy_metals_pass"> Heavy Metals Pass</label></div>
+            <div><label class="checkbox-row"><input type="checkbox" name="residual_solvents_pass"> Residual Solvents Pass</label></div>
+            <div><label class="checkbox-row"><input type="checkbox" name="foreign_matter_pass"> Foreign Matter Pass</label></div>
+          </div>
+          <div class="form-grid" style="margin-top:16px">
+            <div class="full">
+              <label>Failure Notes (which panels failed and why)</label>
+              <textarea name="failures" rows="2" placeholder="Optional — describe any failed panels"></textarea>
+            </div>
+            <div>
+              <label>COA URL (PDF link)</label>
+              <input type="url" name="coa_url" placeholder="https://...">
+            </div>
+            <div>
+              <label>COA Filename</label>
+              <input type="text" name="coa_filename" placeholder="dfly_CG_260501_COA.pdf">
+            </div>
+            <div class="full">
+              <label>Notes</label>
+              <textarea name="notes" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">Save Results</button>
+            <button type="button" class="btn" onclick="closeLabModal()">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- INVENTORY -->
   <section class="view" id="view-inventory">
     <h1 class="view-title">Inventory</h1>
@@ -664,7 +849,7 @@ const AUTH_KEY = 'jbd_dfly_auth';
 const API_BASE = (location.hostname === 'localhost' || location.protocol === 'file:')
   ? 'https://app.cannacrypted.com'
   : 'https://app.cannacrypted.com';
-let DB = { production: [], samples: [], inventory: [], strains: [], meta: {} };
+let DB = { production: [], samples: [], inventory: [], strains: [], labTests: [], meta: {} };
 let AUTH = localStorage.getItem(AUTH_KEY) || '';
 let ONLINE = true;
 
@@ -749,6 +934,23 @@ async function refresh() {
     const state = await api('/api/dfly/state');
     DB.inventory = state.inventory || [];
     DB.strains = state.strains || [];
+    DB.labTests = (state.lab_tests || []).map(t => ({
+      id: t.id, submittedDate: t.submitted_date, receivedDate: t.received_date,
+      strainId: t.strain_id, strainName: t.strain_name, strainType: t.strain_type,
+      batchId: t.batch_id, stateBatchId: t.state_batch_id, metrcTag: t.metrc_tag,
+      sampleId: t.sample_id, labName: t.lab_name, labSampleId: t.lab_sample_id,
+      sampleWeightG: t.sample_weight_g != null ? parseFloat(t.sample_weight_g) : null,
+      status: t.status, overallResult: t.overall_result,
+      thcTotal: t.thc_total, thca: t.thca, cbdTotal: t.cbd_total, cbda: t.cbda,
+      totalCannabinoids: t.total_cannabinoids, terpenesTotal: t.terpenes_total,
+      dominantTerpene: t.dominant_terpene, terpeneProfile: t.terpene_profile,
+      moisture: t.moisture, waterActivity: t.water_activity,
+      microbialsPass: t.microbials_pass, mycotoxinsPass: t.mycotoxins_pass,
+      pesticidesPass: t.pesticides_pass, heavyMetalsPass: t.heavy_metals_pass,
+      residualSolventsPass: t.residual_solvents_pass, foreignMatterPass: t.foreign_matter_pass,
+      failures: t.failures, coaUrl: t.coa_url, coaFilename: t.coa_filename,
+      cost: t.cost, notes: t.notes, timestamp: t.created_at,
+    }));
     // Map snake_case API fields to the camelCase the frontend expects
     DB.production = (state.production || []).map(p => ({
       id: p.id, date: p.date, strainId: p.strain_id, strainName: p.strain_name,
@@ -819,6 +1021,8 @@ function setupForms() {
   const today = new Date().toISOString().slice(0, 10);
   document.querySelector('#productionForm input[name=date]').value = today;
   document.querySelector('#sampleForm input[name=date]').value = today;
+  const lab = document.querySelector('#labSubmitForm input[name=submitted_date]');
+  if (lab) lab.value = today;
 }
 
 function populateStrainSelects() {
@@ -999,9 +1203,226 @@ function renderAll() {
   renderDashboard();
   renderProduction();
   renderSamples();
+  renderLabTests();
   renderInventory();
   renderStrains();
   renderSnapshot();
+  populateBatchIdList();
+}
+
+function populateBatchIdList() {
+  const dl = document.getElementById('batchIdList');
+  if (!dl) return;
+  const ids = [...new Set(DB.production.map(p => p.batchId).filter(Boolean))];
+  dl.innerHTML = ids.map(b => `<option value="${b}">`).join('');
+}
+
+// =================== LAB TESTS ===================
+function suggestLabSampleId() {
+  const f = document.getElementById('labSubmitForm');
+  const date = (f.submitted_date.value || new Date().toISOString().slice(0,10)).replace(/-/g,'').slice(2);
+  const seq = ((DB.labTests || []).filter(t => t.sampleId && t.sampleId.includes(`-${date}-`)).length + 1).toString().padStart(2, '0');
+  f.sample_id.value = `DFLY-LAB-${date}-${seq}`;
+}
+
+function onLabStrainChange(sel) {
+  const opt = sel.selectedOptions[0];
+  if (!opt) return;
+  const f = sel.form;
+  // Auto-fill batch ID if there's a recent matching production run with no test yet
+  const sid = sel.value;
+  if (!sid) return;
+  const tested = new Set((DB.labTests || []).map(t => t.batchId));
+  const recent = DB.production.find(p => p.strainId === sid && !tested.has(p.batchId));
+  if (recent && !f.batchId.value) f.batchId.value = recent.batchId;
+}
+
+async function saveLabTest(e) {
+  e.preventDefault();
+  const f = e.target;
+  const fd = new FormData(f);
+  const strain = DB.strains.find(s => s.id === fd.get('strainId'));
+  const payload = {
+    submitted_date: fd.get('submitted_date'),
+    strain_id: strain ? strain.id : '',
+    strain_name: strain ? strain.name : '',
+    strain_type: strain ? strain.type : '',
+    batch_id: fd.get('batchId'),
+    state_batch_id: fd.get('state_batch_id'),
+    metrc_tag: fd.get('metrc_tag'),
+    sample_id: fd.get('sample_id'),
+    lab_name: fd.get('lab_name'),
+    lab_sample_id: fd.get('lab_sample_id'),
+    sample_weight_g: fd.get('sample_weight_g'),
+    cost: fd.get('cost'),
+    status: fd.get('status') || 'Submitted',
+    overall_result: 'Pending',
+    notes: fd.get('notes'),
+  };
+  try {
+    await api('/api/dfly/lab-tests', { method: 'POST', body: JSON.stringify(payload) });
+    f.reset();
+    document.querySelector('#labSubmitForm input[name=submitted_date]').value = new Date().toISOString().slice(0,10);
+    toast('Lab submission logged');
+    await refresh();
+  } catch (err) { toast('Save failed: ' + err.message, true); }
+}
+
+function openLabResults(id) {
+  const t = (DB.labTests || []).find(x => x.id === id);
+  if (!t) return;
+  const f = document.getElementById('labResultsForm');
+  f.id.value = t.id;
+  f.received_date.value = t.receivedDate || new Date().toISOString().slice(0,10);
+  f.status.value = t.status === 'Submitted' ? 'Complete' : (t.status || 'Complete');
+  f.overall_result.value = t.overallResult || 'Pending';
+  ['thc_total','thca','cbd_total','cbda','total_cannabinoids','terpenes_total',
+   'moisture','water_activity'].forEach(k => {
+    const camel = k.replace(/_([a-z])/g, (_,c) => c.toUpperCase());
+    f[k].value = t[camel] != null ? t[camel] : '';
+  });
+  f.dominant_terpene.value = t.dominantTerpene || '';
+  ['microbials_pass','mycotoxins_pass','pesticides_pass','heavy_metals_pass',
+   'residual_solvents_pass','foreign_matter_pass'].forEach(k => {
+    const camel = k.replace(/_([a-z])/g, (_,c) => c.toUpperCase());
+    f[k].checked = !!t[camel];
+  });
+  f.failures.value = t.failures || '';
+  f.coa_url.value = t.coaUrl || '';
+  f.coa_filename.value = t.coaFilename || '';
+  f.notes.value = t.notes || '';
+  document.getElementById('labResultsTitle').textContent = `Record Results — ${t.batchId || t.sampleId || t.strainName}`;
+  document.getElementById('labResultsModal').classList.add('show');
+}
+
+function closeLabModal() {
+  document.getElementById('labResultsModal').classList.remove('show');
+}
+
+async function saveLabResults(e) {
+  e.preventDefault();
+  const f = e.target;
+  const fd = new FormData(f);
+  const tid = fd.get('id');
+  const num = (k) => fd.get(k) === '' ? null : parseFloat(fd.get(k));
+  const payload = {
+    received_date: fd.get('received_date'),
+    status: fd.get('status'),
+    overall_result: fd.get('overall_result'),
+    thc_total: num('thc_total'), thca: num('thca'),
+    cbd_total: num('cbd_total'), cbda: num('cbda'),
+    total_cannabinoids: num('total_cannabinoids'),
+    terpenes_total: num('terpenes_total'),
+    dominant_terpene: fd.get('dominant_terpene'),
+    moisture: num('moisture'),
+    water_activity: num('water_activity'),
+    microbials_pass: !!fd.get('microbials_pass'),
+    mycotoxins_pass: !!fd.get('mycotoxins_pass'),
+    pesticides_pass: !!fd.get('pesticides_pass'),
+    heavy_metals_pass: !!fd.get('heavy_metals_pass'),
+    residual_solvents_pass: !!fd.get('residual_solvents_pass'),
+    foreign_matter_pass: !!fd.get('foreign_matter_pass'),
+    failures: fd.get('failures'),
+    coa_url: fd.get('coa_url'),
+    coa_filename: fd.get('coa_filename'),
+    notes: fd.get('notes'),
+  };
+  try {
+    await api(`/api/dfly/lab-tests/${tid}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    closeLabModal();
+    toast('Results saved');
+    await refresh();
+  } catch (err) { toast('Save failed: ' + err.message, true); }
+}
+
+async function deleteLabTest(id) {
+  if (!confirm('Delete this lab test?')) return;
+  try {
+    await api(`/api/dfly/lab-tests/${id}`, { method: 'DELETE' });
+    await refresh();
+  } catch (err) { toast('Delete failed: ' + err.message, true); }
+}
+
+function renderLabTests() {
+  const tests = DB.labTests || [];
+  // KPIs
+  const submitted = tests.filter(t => t.status === 'Submitted' || t.status === 'In Progress').length;
+  const passed = tests.filter(t => t.overallResult === 'Pass').length;
+  const failed = tests.filter(t => t.overallResult === 'Fail').length;
+  const passedThc = tests.filter(t => t.overallResult === 'Pass' && t.thcTotal != null);
+  const avgThc = passedThc.length ? (passedThc.reduce((s,t) => s + parseFloat(t.thcTotal||0), 0) / passedThc.length) : 0;
+  const totalCost = tests.reduce((s,t) => s + parseFloat(t.cost || 0), 0);
+  const kpiEl = document.getElementById('labKpis');
+  if (kpiEl) kpiEl.innerHTML = [
+    kpiCard('Submitted', tests.length, 'tests'),
+    kpiCard('In Lab', submitted, 'awaiting'),
+    kpiCard('Passed', passed, 'COAs'),
+    kpiCard('Failed', failed, 'COAs'),
+    kpiCard('Avg THC (passed)', avgThc.toFixed(1), '%'),
+    kpiCard('Lab Spend', '$' + totalCost.toFixed(0)),
+  ].join('');
+
+  const filter = (document.getElementById('labFilter')?.value || '').toLowerCase();
+  const sFilter = document.getElementById('labStatusFilter')?.value || '';
+  const rFilter = document.getElementById('labResultFilter')?.value || '';
+  let rows = tests;
+  if (filter) rows = rows.filter(t =>
+    [t.batchId, t.stateBatchId, t.metrcTag, t.labName, t.strainName, t.sampleId, t.labSampleId]
+      .some(v => (v || '').toLowerCase().includes(filter)));
+  if (sFilter) rows = rows.filter(t => t.status === sFilter);
+  if (rFilter) rows = rows.filter(t => t.overallResult === rFilter);
+  const cnt = document.getElementById('labCount');
+  if (cnt) cnt.textContent = `${rows.length} of ${tests.length} tests`;
+
+  const log = document.getElementById('labLog');
+  if (!log) return;
+  if (rows.length === 0) {
+    log.innerHTML = `<div class="empty"><div class="display">No lab tests</div>Submit a sample using the form above to start tracking.</div>`;
+    return;
+  }
+  const resultBadge = (r) => {
+    if (r === 'Pass') return '<span class="badge in-hand">PASS</span>';
+    if (r === 'Fail') return '<span class="badge depleted">FAIL</span>';
+    return '<span class="badge on-order">PENDING</span>';
+  };
+  const statusBadge = (s) => {
+    if (s === 'Complete') return '<span class="badge in-hand">' + s + '</span>';
+    if (s === 'Failed' || s === 'Cancelled') return '<span class="badge depleted">' + s + '</span>';
+    return '<span class="badge on-order">' + s + '</span>';
+  };
+  const panels = (t) => {
+    const map = [
+      ['M', t.microbialsPass], ['Myc', t.mycotoxinsPass], ['Pest', t.pesticidesPass],
+      ['HM', t.heavyMetalsPass], ['RS', t.residualSolventsPass], ['FM', t.foreignMatterPass],
+    ];
+    return map.map(([n, v]) => {
+      const color = v === true ? 'var(--good)' : v === false ? 'var(--bad)' : 'var(--ink-mute)';
+      const sym = v === true ? '✓' : v === false ? '✗' : '–';
+      return `<span title="${n}" style="color:${color};font-family:JetBrains Mono,monospace;font-size:11px;margin-right:4px">${sym}${n}</span>`;
+    }).join('');
+  };
+  log.innerHTML = `
+    <table style="min-width:1200px"><thead><tr>
+      <th>Submitted</th><th>State Batch ID</th><th>METRC</th><th>Strain</th><th>Prod Batch</th>
+      <th>Lab</th><th>Status</th><th>Result</th><th>THC%</th><th>Terps</th><th>Panels</th><th>COA</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(t => `
+      <tr style="cursor:pointer" onclick="openLabResults('${t.id}')">
+        <td class="mono" style="font-size:11px">${t.submittedDate || '—'}</td>
+        <td class="mono" style="font-size:11px;color:var(--gold)">${t.stateBatchId || '—'}</td>
+        <td class="mono" style="font-size:10px;color:var(--ink-mute)">${t.metrcTag || '—'}</td>
+        <td>${t.strainName ? `<span class="pill-strain"><span class="dot ${t.strainType}"></span>${t.strainName}</span>` : '—'}</td>
+        <td class="mono" style="font-size:11px">${t.batchId || '—'}</td>
+        <td style="font-size:12px">${t.labName || '—'}${t.labSampleId ? `<div style="font-size:10px;color:var(--ink-mute)">${t.labSampleId}</div>` : ''}</td>
+        <td>${statusBadge(t.status || 'Submitted')}</td>
+        <td>${resultBadge(t.overallResult || 'Pending')}</td>
+        <td><strong>${t.thcTotal != null ? parseFloat(t.thcTotal).toFixed(1) : '—'}</strong></td>
+        <td class="mono" style="font-size:11px">${t.terpenesTotal != null ? parseFloat(t.terpenesTotal).toFixed(2) + '%' : '—'}${t.dominantTerpene ? `<div style="font-size:10px;color:var(--ink-mute)">${t.dominantTerpene}</div>` : ''}</td>
+        <td>${panels(t)}</td>
+        <td>${t.coaUrl ? `<a href="${t.coaUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--gold);font-family:JetBrains Mono,monospace;font-size:11px">📄 OPEN</a>` : '<span style="color:var(--ink-mute);font-size:11px">—</span>'}</td>
+        <td onclick="event.stopPropagation()"><button class="icon-btn danger" onclick="deleteLabTest('${t.id}')">×</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
 }
 
 function renderDashboard() {
